@@ -8,15 +8,15 @@ from stable_baselines import logger
 
 from .classes import *
 
-class SushiGoEnv(gym.Env):
+class TableturfEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self, verbose = False, manual = False):
-        super(SushiGoEnv, self).__init__()
-        self.name = 'sushigo'
+        super(TableturfEnv, self).__init__()
+        self.name = 'tableturf'
         self.manual = manual
         
-        self.n_players = 3
+        self.n_players = 2
         self.cards_per_player = 9
         self.card_types = 12
         
@@ -74,7 +74,7 @@ class SushiGoEnv(gym.Env):
             obs[7][card.id] = 1
         
         ret = obs.flatten()
-        for p in self.players: # TODO this should be from reference point of the current_player
+        for p in self.players: # TODO this should be from reference point of the current_player
             ret = np.append(ret, p.score / self.max_score)
 
         ret = np.append(ret, self.legal_actions)
@@ -137,48 +137,6 @@ class SushiGoEnv(gym.Env):
                 
         return counts_winners
 
-
-    def score_puddings(self):
-        logger.debug('\nPudding counts...')
-
-        puddings = []
-        for p in self.players:
-            puddings.append(len([card for card in p.position.cards if card.type == 'pudding']))
-        
-        logger.debug(f'Puddings: {puddings}')
-
-        pudding_winners = self.get_limits(puddings, 'max')
-
-        for i in pudding_winners:
-            self.players[i].score += 6 // len(pudding_winners)
-            logger.debug(f'Player {self.players[i].id} 1st place puddings: {6 // len(pudding_winners)}')
-        
-        pudding_losers = self.get_limits(puddings, 'min')
-
-        for i in pudding_losers:
-            self.players[i].score -= 6 // len(pudding_losers)
-            logger.debug(f'Player {self.players[i].id} last place puddings: {-6 // len(pudding_losers)}')
-
-
-
-    def score_maki(self, maki):
-        logger.debug('\nMaki counts...')
-        logger.debug(f'Maki: {maki}')
-
-        maki_winners = self.get_limits(maki, 'max')
-
-        for i in maki_winners:
-            self.players[i].score += 6 // len(maki_winners)
-            maki[i] = None #mask out the winners
-            logger.debug(f'Player {self.players[i].id} 1st place maki: {6 // len(maki_winners)}')
-        
-        if len(maki_winners) == 1:
-            #now get second place as winners are masked with None
-            maki_winners = self.get_limits(maki, 'max')
-
-            for i in maki_winners:
-                self.players[i].score += 3 // len(maki_winners)
-                logger.debug(f'Player {self.players[i].id} 2nd place maki: {3 // len(maki_winners)}')
 
 
     def score_round(self):
@@ -381,7 +339,7 @@ class SushiGoEnv(gym.Env):
 
 
     def rules_move(self):
-        raise Exception('Rules based agent is not yet implemented for Sushi Go!')
+        raise Exception('Rules based agent is not yet implemented for Tableturf battle!')
 
     def seed(self, seed=0):
         pass

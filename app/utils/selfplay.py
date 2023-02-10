@@ -19,6 +19,9 @@ def selfplay_wrapper(env):
             self.best_model_name = get_best_model_name(self.name)
 
         def setup_opponents(self):
+
+            logger.info(f'Using opponent type {self.opponent_type}')
+
             if self.opponent_type == 'rules':
                 self.opponent_agent = Agent('rules')
             else:
@@ -37,7 +40,7 @@ def selfplay_wrapper(env):
                 elif self.opponent_type == 'best':
                     self.opponent_agent = Agent('ppo_opponent', self.opponent_models[-1])  
 
-                elif self.opponent_type == 'mostly_best':
+                elif self.opponent_type == 'mostly_best' or self.opponent_type == 'mostly_best_base':
                     j = random.uniform(0,1)
                     if j < 0.8:
                         self.opponent_agent = Agent('ppo_opponent', self.opponent_models[-1])  
@@ -52,6 +55,14 @@ def selfplay_wrapper(env):
 
             self.agent_player_num = np.random.choice(self.n_players)
             self.agents = [self.opponent_agent] * self.n_players
+
+            # Always include one base agent
+            if self.opponent_type == 'mostly_best_base':
+                player_nums = set(range(0, self.n_players))
+                player_nums_not_player = player_nums - set([self.agent_player_num])
+                random_player_not_player = np.random.choice(tuple(player_nums_not_player))
+                self.agents[random_player_not_player] = Agent('base', self.opponent_models[0])
+
             self.agents[self.agent_player_num] = None
             try:
                 #if self.players is defined on the base environment

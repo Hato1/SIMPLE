@@ -75,17 +75,17 @@ def main(args):
     done = False
     
     for i, p in enumerate(players):
-      logger.debug(f'Player {i+1} = {p.name}')
+      logger.info(f'Player {i+1} = {p.name}')
 
     while not done:
 
       current_player = players[env.current_player_num]
       env.render()
-      logger.debug(f'\nCurrent player name: {current_player.name}')
+      logger.info(f'\nCurrent player name: {current_player.name}')
 
       if args.recommend and current_player.name in ['human', 'rules']:
         # show recommendation from last loaded model
-        logger.debug(f'\nRecommendation by {ppo_agent.name}:')
+        logger.info(f'\nRecommendation by {ppo_agent.name}:')
         action = ppo_agent.choose_action(env, choose_best_action = True, mask_invalid_actions = True)
 
       if current_player.name == 'human':
@@ -97,10 +97,10 @@ def main(args):
           # for MulitDiscrete action input as list TODO
           action = eval(action)
       elif current_player.name == 'rules':
-        logger.debug(f'\n{current_player.name} model choices')
+        logger.info(f'\n{current_player.name} model choices')
         action = current_player.choose_action(env, choose_best_action = False, mask_invalid_actions = True)
       else:
-        logger.debug(f'\n{current_player.name} model choices')
+        logger.info(f'\n{current_player.name} model choices')
         action = current_player.choose_action(env, choose_best_action = args.best, mask_invalid_actions = True)
 
       obs, reward, done, _ = env.step(action)
@@ -117,7 +117,7 @@ def main(args):
     logger.info(f"Played {game + 1} games: {total_rewards}")
 
     if args.write_results:
-      write_results(players, game, args.games, env.turns_taken)
+      write_results('results.csv', players, game, args.games, env.turns_taken)
 
     for p in players:
       p.points = 0

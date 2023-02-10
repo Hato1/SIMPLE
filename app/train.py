@@ -134,8 +134,8 @@ def cli() -> None:
 
   parser.add_argument("--reset", "-r", action = 'store_true', default = False
                 , help="Start retraining the model from scratch")
-  parser.add_argument("--opponent_type", "-o", type = str, default = 'mostly_best'
-              , help="best / mostly_best / random / base / rules - the type of opponent to train against")
+  parser.add_argument("--opponent_type", "-o", type = str, default = 'mostly_best_base'
+              , help="best / mostly_best / random / base / rules / mostly_best_base - the type of opponent to train against")
   parser.add_argument("--debug", "-d", action = 'store_true', default = False
               , help="Debug logging")
   parser.add_argument("--verbose", "-v", action = 'store_true', default = False
@@ -145,7 +145,7 @@ def cli() -> None:
   parser.add_argument("--best", "-b", action = 'store_true', default = False
               , help="Uses best moves when evaluating agent against rules-based agent")
   parser.add_argument("--env_name", "-e", type = str, default = 'tictactoe'
-              , help="Which gym environment to train in: tictactoe, connect4, sushigo, butterfly, geschenkt, frouge")
+              , help="Which gym environment to train in: tictactoe, connect4, sushigo, butterfly, geschenkt, frouge, tableturf")
   parser.add_argument("--seed", "-s",  type = int, default = 17
             , help="Random seed")
 
