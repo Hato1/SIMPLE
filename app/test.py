@@ -117,7 +117,7 @@ def main(args):
     logger.info(f"Played {game + 1} games: {total_rewards}")
 
     if args.write_results:
-      write_results(players, game, args.games, env.turns_taken)
+      write_results('results.csv', players, game, args.games, env.turns_taken)
 
     for p in players:
       p.points = 0
