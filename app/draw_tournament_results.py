@@ -9,15 +9,19 @@ import argparse
 
 def main(args) -> None:
 
-    df = pd.read_csv(args.filename, usecols=[2,3,4])
+    df = pd.read_csv(args.filename)
     # Sort so base appears lexographically before _model_00001
     df = df.replace('base', 'model_00000_base')
     # Replace unnecessary suffixes
     df = df.replace(to_replace=r'^_(model_\d{5})_.+$', value=r'\1', regex=True)
 
+    # Create score difference between models, in the 3 player game (with 1 base) both models will likely score on average > 0
+    # (taking score from base), so this tests if model0 is doing better than model1
+    df['score0-score1'] = df['score0'] - df['score1']
+
     print(df.head())
 
-    results_sq = df.pivot(index='model1', columns='model2', values='score1')
+    results_sq = df.pivot(index='model0', columns='model1', values='score0-score1')
 
     print(results_sq.head())
 

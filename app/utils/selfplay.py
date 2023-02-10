@@ -19,6 +19,9 @@ def selfplay_wrapper(env):
             self.best_model_name = get_best_model_name(self.name)
 
         def setup_opponents(self):
+
+            logger.info(f'Using opponent type {self.opponent_type}')
+
             if self.opponent_type == 'rules':
                 self.opponent_agent = Agent('rules')
             else:
