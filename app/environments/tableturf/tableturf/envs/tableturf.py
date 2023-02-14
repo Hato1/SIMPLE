@@ -3,6 +3,7 @@ from typing import List, Tuple, Union
 import gym
 import numpy as np
 
+from colour import C
 from deck import Deck
 
 # import config
@@ -116,7 +117,7 @@ class TableturfEnv(gym.Env):
         #     obs[7][card.id] = 1
         #
         # ret = obs.flatten()
-        # for p in self.players:  # toodo this should be from reference point of the current_player
+        # for p in self.players:  # to do this should be from reference point of the current_player
         #     ret = np.append(ret, p.score / self.max_score)
         #
         # ret = np.append(ret, self.legal_actions)
@@ -149,10 +150,14 @@ class TableturfEnv(gym.Env):
     def check_legal_action(self, action: int) -> bool:
         move = self.action_to_move(action)
         if move.card not in self.current_player.hand:
+            logger.debug(f"{repr(move.card)} not in {self.current_player}'s hand.")
             return False
         if isinstance(move, Pass):
             return True
         if move.special and self.current_player.special_charges < move.card.cost:
+            logger.debug(
+                f"{self.current_player} cannot afford special ({self.current_player.special_charges < move.card.cost})."
+            )
             return False
         if not self.board.check_legal_action(move):
             return False
@@ -163,7 +168,7 @@ class TableturfEnv(gym.Env):
         p2_move = self.action_to_move(p2_action)
 
         for p, move in zip(Player.players, [p1_move, p2_move]):
-            logger.debug(f"Player {p.id} playing {move.card.name}")
+            logger.debug(f"{p} playing {repr(move.card)}")
             p.play(move.card)
             if isinstance(move, Pass):
                 logger.debug(f"Player {p.id} passes")
@@ -173,10 +178,12 @@ class TableturfEnv(gym.Env):
 
     def score_game(self) -> List[float]:
         """Determine winner and return rewards."""
-        p1, p2 = self.board.score()
-        if p1 > p2:
+        p0, p1 = self.board.score()
+        if p0 > p1:
+            logger.debug(f"{Player.players[0]} wins!")
             return [1.0, -1.0]
-        elif p1 < p2:
+        elif p0 < p1:
+            logger.debug(f"{Player.players[1]} wins!")
             return [-1.0, 1.0]
         else:
             logger.error("Players tied! Not implemented, giving reward of 0.")
@@ -218,31 +225,32 @@ class TableturfEnv(gym.Env):
             if self.current_player_num == 0:
                 self.turns_taken += 1
 
+            self.render()
+
             if self.turns_taken == self.n_turns:
                 reward = self.score_game()
                 done = True
-
-            self.render()
 
         self.done = done
         return self.observation, reward, done, {}
 
     def render(self, mode='human', close=False):
-        # ToDo: Display Board state.
         if close:
             return
         logger.debug(f'\n\n-------TURN {self.turns_taken + 1}-----------')
-        logger.debug(f"It is Player {self.current_player.id}'s turn to choose\n")
+        logger.debug(f"It is {self.current_player}'s turn to choose\n")
         for p in Player.players:
-            logger.debug(p)
+            logger.debug(repr(p))
         if self.verbose:
             pass
             # ToDo: Log observation
             # logger.debug(
             #     f'\nObservation: \n{[i if o == 1 else (i, o) for i, o in enumerate(self.observation) if o != 0]}')
+        logger.debug(self.board)
         if self.done:
             logger.debug(f'\n\nGAME OVER')
-        logger.debug(f'Scores {self.board.score()}')
+        scores = self.board.score()
+        logger.debug(f'Scores {Player.players[0].c}{scores[0]}{C.END}, {Player.players[1].c}{scores[1]}{C.END}\n')
 
     def rules_move(self):
         raise Exception('Rules based agent is not yet implemented for Tableturf battle!')
@@ -251,11 +259,22 @@ class TableturfEnv(gym.Env):
         pass
 
 
+def play_first_card(env, player):
+    move = Move(player.hand[0], Point(0, 0), False)
+    action = env.move_to_action(move)
+    env.step(action)
+
+
 def test():
     env = TableturfEnv(verbose=True, manual=True)
     env.reset()
 
     env.render()
+
+    while not env.done:
+        play_first_card(env, env.current_player)
+    # env.step(1)
+    # env.step(1)
     # test_action_to_move()
 
 

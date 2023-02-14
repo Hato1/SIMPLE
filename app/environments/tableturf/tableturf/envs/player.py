@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import List
 
 from card import Card
+from colour import C
 from deck import Deck
 
 
@@ -25,12 +26,17 @@ class Player:
 
     def play(self, card: Card):
         self.hand.remove(card)
+        self.draw()
 
     def pick(self, name):
         for i, c in enumerate(self.hand):
             if c.name == name:
                 self.hand.pop(i)
                 return c
+
+    @property
+    def c(self):
+        return C.YELLOW if self.id == 0 else C.CYAN
 
     @classmethod
     def reset(cls):
@@ -40,8 +46,13 @@ class Player:
     def get(cls, player: int):
         return cls.players[player]
 
+    def __str__(self):
+        return f"{self.c}Player {self.id}{C.END}"
+
     def __repr__(self):
-        output = f"Player {self.id}\'s hand:\n"
+        output = f"{self.c}Player {self.id}{C.END}'s hand: "
         for card in self.hand:
-            output += repr(card) + "\n"
+            output += repr(card) + ", "
+        output = output[:-2]
+        output += f". {C.RED}Charges: {C.DARKRED}{self.special_charges}{C.END}."
         return output

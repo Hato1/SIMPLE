@@ -21,6 +21,8 @@ class Deck:
     def draw(self, n: int):
         drawn = []
         for x in range(n):
+            if not self.cards:
+                return drawn
             drawn.append(self.cards.pop())
         return drawn
 

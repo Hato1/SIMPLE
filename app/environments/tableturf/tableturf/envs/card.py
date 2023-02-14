@@ -7,8 +7,13 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 import numpy as np
+from colour import C
 
-from helpers import Point
+
+@dataclass
+class Point:
+    x: int
+    y: int
 
 
 @dataclass
@@ -21,7 +26,7 @@ class Card:
     special: Optional[Point] = None
 
     def __repr__(self):
-        return f"Card {self.id}: {self.name}"
+        return f"{C.PURPLE}Card {self.id}:{C.BLUE} {self.name}{C.END}"
 
     def __str__(self):
         msg = f"Card {self.id}: {self.name}\n"
