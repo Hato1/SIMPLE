@@ -4,29 +4,31 @@ tiles, represented by a numpy array and optionally one special space
 represented as an index into the numpy array.
 """
 from dataclasses import dataclass
-from typing import Tuple, List
+from typing import List, Optional
 
 import numpy as np
+
+from helpers import Point
 
 
 @dataclass
 class Card:
-    # Todo: How many special charges does it cost to play?
     id: int
     name: str
     priority: int
     cost: int
     shape: np.ndarray
-    special: Tuple[int, int] = None
+    special: Optional[Point] = None
 
     def __repr__(self):
         return f"Card {self.id}: {self.name}"
 
     def __str__(self):
-        # Todo: Render special tile, if it exists
         msg = f"Card {self.id}: {self.name}\n"
         shape: List = self.shape.tolist()  # type: ignore
-        for row in shape:
+        for i, row in enumerate(shape):
             row = ['▣' if x else ' ' for x in row]
+            if self.special and self.special.x == i:
+                row[self.special.y] = "\033[94m▣\033[0m"
             msg += ''.join(row) + '\n'
         return msg

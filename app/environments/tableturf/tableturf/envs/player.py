@@ -26,13 +26,6 @@ class Player:
     def play(self, card: Card):
         self.hand.remove(card)
 
-        # for card in self.hand:
-        #     if card.id == i:
-        #         self.hand.remove(card)
-        #         break
-        # self.draw()
-        # return card
-
     def pick(self, name):
         for i, c in enumerate(self.hand):
             if c.name == name:

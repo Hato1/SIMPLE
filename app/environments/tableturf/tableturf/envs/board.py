@@ -21,13 +21,16 @@ class Board:
             self.base_boards[base] = self
 
     def score(self) -> Tuple[float, float]:
+        # ToDo
         logger.error("Board scoring is not implemented.")
         return 0.0, 0.0
 
     def play(self, p1: Optional[Move], p2: Optional[Move]):
+        # ToDo
         raise NotImplementedError
 
     def check_legal_action(self, move: Move):
+        # ToDo
         raise NotImplementedError
 
 

@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Union
 
 import gym
 import numpy as np
@@ -8,6 +8,7 @@ from deck import Deck
 # import config
 
 if __name__ == "__main__":
+    # Importing stable_baselines takes forever, use builtin for quicker testing.
     import logging
     logger = logging.getLogger()
     logging.basicConfig(level=logging.DEBUG, format='%(message)s')
@@ -15,7 +16,7 @@ else:
     from stable_baselines import logger
 
 from board import Board
-from helpers import create_universal_deck, Move, Point
+from helpers import create_universal_deck, Move, Point, Pass
 from player import Player
 
 
@@ -34,6 +35,8 @@ class TableturfEnv(gym.Env):
 
         self.n_players = 2
         self.card_types = 175
+        self.width = 19
+        self.height = 25
         self.n_turns = 12
 
         #
@@ -47,14 +50,15 @@ class TableturfEnv(gym.Env):
         #       X moves left.
         #
         #  Actions:
-        #       (every board position) x (4 cards in hand) x (Special, pass or neither)
+        #       (every board position) x (175 cards to play from hand) x (Special or not)
+        #       + 175 cards to pass with
         #
         # Passing also requires discard
         # Note: not every action is legal
         #
-        # ToDo: Complete observation space.
-        self.observation_space = gym.spaces.Box(np.float32(-2), np.float32(2), (19, 25))
-        self.action_space = gym.spaces.Discrete(19 * 25 * 175 * 2 + 175)
+        # ToDo: Implement observation space
+        self.observation_space = gym.spaces.Box(np.float32(-2), np.float32(2), (self.width, self.height))
+        self.action_space = gym.spaces.Discrete(self.width * self.height * self.card_types * 2 + self.card_types)
 
         self.verbose = verbose
 
@@ -84,7 +88,7 @@ class TableturfEnv(gym.Env):
 
     @property
     def observation(self):
-        # ToDo: Implement observation
+        # ToDo: Implement observation space
         logger.critical("Observation is not implemented")
         return np.ndarray([])
         # obs = np.zeros(([self.total_positions, self.card_types]))
@@ -112,60 +116,60 @@ class TableturfEnv(gym.Env):
         #     obs[7][card.id] = 1
         #
         # ret = obs.flatten()
-        # for p in self.players:  # TODO this should be from reference point of the current_player
+        # for p in self.players:  # toodo this should be from reference point of the current_player
         #     ret = np.append(ret, p.score / self.max_score)
         #
         # ret = np.append(ret, self.legal_actions)
         #
         # return ret
 
-    def action_to_move(self, action: int) -> Optional[Move]:
+    def action_to_move(self, action: int) -> Union[Move, Pass]:
         assert self.action_space.contains(action)
-        if action == PASS:
-            return None
-        x, action = action % 19, action // 19
-        y, action = action % 25, action // 25
-        c, action = action % 175, action // 175
+        if action >= PASS:
+            c = action - PASS
+            return Pass(universal_deck[c])
+        x, action = action % self.width, action // self.width
+        y, action = action % self.height, action // self.height
+        c, action = action % self.card_types, action // self.card_types
         s, action = action % 2, action // 2
         return Move(universal_deck[c], Point(x, y), bool(s))
 
-    def move_to_action(self, move: Move) -> int:
-        if move:
+    def move_to_action(self, move: Union[Move, Pass]) -> int:
+        if isinstance(move, Move):
             action = 0
             action += move.point.x
-            action += move.point.y * 19
-            action += (move.card.id - 1) * 19 * 25
-            action += move.special * 19 * 25 * 175
+            action += move.point.y * self.width
+            action += (move.card.id - 1) * self.width * self.height
+            action += move.special * self.width * self.height * self.card_types
         else:
-            action = PASS
+            action = PASS + move.card.id - 1
         assert self.action_space.contains(action)
         return action
 
     def check_legal_action(self, action: int) -> bool:
         move = self.action_to_move(action)
-        if not move:
-            return True
         if move.card not in self.current_player.hand:
             return False
+        if isinstance(move, Pass):
+            return True
         if move.special and self.current_player.special_charges < move.card.cost:
             return False
         if not self.board.check_legal_action(move):
             return False
         return True
 
-    def play_card(self, other_action: int, my_action: int):
-        my_move = self.action_to_move(my_action)
-        other_move = self.action_to_move(other_action)
+    def play_card(self, p1_action: int, p2_action: int):
+        p1_move = self.action_to_move(p1_action)
+        p2_move = self.action_to_move(p2_action)
 
-        for p, move in zip(Player.players, [my_move, other_move]):
-            if move:
-                p.play(move.card)
-                logger.debug(f"Player {p.id} playing {move.card.name}")
-            else:
-                p.special_charges += 1
+        for p, move in zip(Player.players, [p1_move, p2_move]):
+            logger.debug(f"Player {p.id} playing {move.card.name}")
+            p.play(move.card)
+            if isinstance(move, Pass):
                 logger.debug(f"Player {p.id} passes")
+                p.special_charges += 1
 
-        self.board.play(my_move, other_move)
+        self.board.play(p1_move, p2_move)
 
     def score_game(self) -> List[float]:
         """Determine winner and return rewards."""
@@ -175,7 +179,7 @@ class TableturfEnv(gym.Env):
         elif p1 < p2:
             return [-1.0, 1.0]
         else:
-            logger.error("Players tied! Not implemented.")
+            logger.error("Players tied! Not implemented, giving reward of 0.")
             return [0.0, 0.0]
 
     def step(self, action: int) -> Tuple[np.ndarray, List[float], bool, dict]:
@@ -188,7 +192,7 @@ class TableturfEnv(gym.Env):
             Truncated: End the game prematurely before a terminal state is reached.
             Info: Debug comments.
 
-        # ToDo: Reward for capturing tiles?
+        # ToDo: Should I add a reward for capturing tiles to assist model learning?
         """
         reward = [0] * self.n_players
         done = False
@@ -221,7 +225,6 @@ class TableturfEnv(gym.Env):
             self.render()
 
         self.done = done
-        # (observation, reward, terminated/truncated, info)
         return self.observation, reward, done, {}
 
     def render(self, mode='human', close=False):
@@ -253,6 +256,7 @@ def test():
     env.reset()
 
     env.render()
+    # test_action_to_move()
 
 
 def test_action_to_move():

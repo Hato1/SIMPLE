@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, Tuple, Optional
 
 import numpy as np
 
@@ -18,17 +18,26 @@ class Point:
 
 
 class Move(NamedTuple):
+    """Python representation of a non-passing action."""
     card: Card
     point: Point
     special: bool
 
 
-def read_shape(file: Path) -> np.ndarray:
+class Pass(NamedTuple):
+    """Python representation of a passing action."""
+    card: Card
+
+
+def read_shape(file: Path) -> Tuple[np.ndarray, Optional[Point]]:
     with open(file) as f:
         lines = f.readlines()
     lines = [list(line[:-1]) for line in lines]
 
-    # Todo: Read coordinated of special tile (if it exists)
+    special = None
+    for i, line in enumerate(lines):
+        if "S" in line:
+            special = Point(i, line.index("S"))
 
     # Convert to bools
     lines = [[x != ' ' for x in y] for y in lines]
@@ -48,7 +57,7 @@ def read_shape(file: Path) -> np.ndarray:
     except AssertionError:
         logging.critical(f"Invalid card file: '{file}'")
 
-    return np.array(lines)
+    return np.array(lines), special
 
 
 def create_universal_deck(path: Path = card_path) -> Deck:
@@ -60,10 +69,10 @@ def create_universal_deck(path: Path = card_path) -> Deck:
             continue
         id_, name, priority, cost = card_file.name.split(",")
 
-        shape = read_shape(card_file)
+        shape, special = read_shape(card_file)
 
         ids.append(int(id_))
-        cards.append(Card(int(id_), name, int(priority), int(cost), shape))
+        cards.append(Card(int(id_), name, int(priority), int(cost), shape, special))
 
     # Pad deck
     for i in range(1, 176):
