@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import NamedTuple, Tuple, Optional
 
 import numpy as np
+from typing_extensions import Literal
 
 from card import Card
 from deck import Deck
@@ -22,6 +23,9 @@ class Move(NamedTuple):
     card: Card
     point: Point
     special: bool
+    player_id: Literal[0, 1]
+    # FixMe: All 4 rotations
+    rotation: int = 0
 
 
 class Pass(NamedTuple):
@@ -69,10 +73,10 @@ def create_universal_deck(path: Path = card_path) -> Deck:
             continue
         id_, name, priority, cost = card_file.name.split(",")
 
-        shape, special = read_shape(card_file)
+        splat_zone, special = read_shape(card_file)
 
         ids.append(int(id_))
-        cards.append(Card(int(id_), name, int(priority), int(cost), shape, special))
+        cards.append(Card(int(id_), name, int(priority), int(cost), splat_zone, special))
 
     # Pad deck
     for i in range(1, 176):

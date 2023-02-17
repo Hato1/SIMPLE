@@ -2,6 +2,7 @@ from typing import List, Tuple, Union
 
 import gym
 import numpy as np
+from typing_extensions import Literal
 
 from colour import C
 from deck import Deck
@@ -16,13 +17,13 @@ if __name__ == "__main__":
 else:
     from stable_baselines import logger
 
-from board import Board
+from board import Board, IllegalMoveError
 from helpers import create_universal_deck, Move, Point, Pass
 from player import Player
 
 
 universal_deck = create_universal_deck()
-PASS = 19 * 25 * 175 * 2
+PASS = 19 * 26 * 175 * 2
 
 
 class TableturfEnv(gym.Env):
@@ -37,14 +38,14 @@ class TableturfEnv(gym.Env):
         self.n_players = 2
         self.card_types = 175
         self.width = 19
-        self.height = 25
+        self.height = 26
         self.n_turns = 12
 
         #
         # Observation + Action spaces
         # ---------------------------
         #  Observations:
-        #       19x25 board with 5 states for each tile +
+        #       19x26 board with 5 states for each tile +
         #       4/175 cards in hand +
         #       0-15/175 cards in deck +
         #       X special tile charges +
@@ -57,7 +58,7 @@ class TableturfEnv(gym.Env):
         # Passing also requires discard
         # Note: not every action is legal
         #
-        # ToDo: Implement observation space
+        # FixMe: Implement observation space
         self.observation_space = gym.spaces.Box(np.float32(-2), np.float32(2), (self.width, self.height))
         self.action_space = gym.spaces.Discrete(self.width * self.height * self.card_types * 2 + self.card_types)
 
@@ -73,7 +74,7 @@ class TableturfEnv(gym.Env):
         Player.reset()
         Player(Deck(universal_deck.get(15)))
         Player(Deck(universal_deck.get(15)))
-        self.current_player_num = 0
+        self.current_player_num: Literal[0, 1] = 0
 
         self.done = False
         logger.debug(f'\n\n---- NEW GAME ----')
@@ -89,7 +90,7 @@ class TableturfEnv(gym.Env):
 
     @property
     def observation(self):
-        # ToDo: Implement observation space
+        # FixMe: Implement observation space
         logger.critical("Observation is not implemented")
         return np.ndarray([])
         # obs = np.zeros(([self.total_positions, self.card_types]))
@@ -133,7 +134,7 @@ class TableturfEnv(gym.Env):
         y, action = action % self.height, action // self.height
         c, action = action % self.card_types, action // self.card_types
         s, action = action % 2, action // 2
-        return Move(universal_deck[c], Point(x, y), bool(s))
+        return Move(universal_deck[c], Point(x, y), bool(s), self.current_player_num)
 
     def move_to_action(self, move: Union[Move, Pass]) -> int:
         if isinstance(move, Move):
@@ -147,8 +148,7 @@ class TableturfEnv(gym.Env):
         assert self.action_space.contains(action)
         return action
 
-    def check_legal_action(self, action: int) -> bool:
-        move = self.action_to_move(action)
+    def check_legal_action(self, move: Union[Move, Pass]) -> bool:
         if move.card not in self.current_player.hand:
             logger.debug(f"{repr(move.card)} not in {self.current_player}'s hand.")
             return False
@@ -159,22 +159,28 @@ class TableturfEnv(gym.Env):
                 f"{self.current_player} cannot afford special ({self.current_player.special_charges < move.card.cost})."
             )
             return False
-        if not self.board.check_legal_action(move):
+        try:
+            self.board.check_legal_action(move)
+        except IllegalMoveError as e:
+            logger.debug(e)
             return False
         return True
 
-    def play_card(self, p1_action: int, p2_action: int):
-        p1_move = self.action_to_move(p1_action)
-        p2_move = self.action_to_move(p2_action)
-
+    def play_card(self, p1_move: Union[Move, Pass], p2_move: Union[Move, Pass]):
+        moves: List[Move] = []
         for p, move in zip(Player.players, [p1_move, p2_move]):
-            logger.debug(f"{p} playing {repr(move.card)}")
+            logger.debug(f"{p} chooses {repr(move.card)}")
             p.play(move.card)
             if isinstance(move, Pass):
                 logger.debug(f"Player {p.id} passes")
                 p.special_charges += 1
+            else:
+                moves.append(move)
+                if move.special:
+                    p.special_charges -= move.card.cost
+                    assert p.special_charges >= 0
 
-        self.board.play(p1_move, p2_move)
+        self.board.play(moves)
 
     def score_game(self) -> List[float]:
         """Determine winner and return rewards."""
@@ -203,16 +209,17 @@ class TableturfEnv(gym.Env):
         """
         reward = [0] * self.n_players
         done = False
+        move = self.action_to_move(action)
 
         # check move legality
-        if not self.check_legal_action(action):
+        if not self.check_legal_action(move):
             reward = [1.0 / (self.n_players - 1)] * self.n_players
             reward[self.current_player_num] = -1
             done = True
 
         # play the card
         else:
-            self.action_bank.append(action)
+            self.action_bank.append(move)
 
             # If both players have made an action, carry it out.
             if len(self.action_bank) == self.n_players:
@@ -243,7 +250,7 @@ class TableturfEnv(gym.Env):
             logger.debug(repr(p))
         if self.verbose:
             pass
-            # ToDo: Log observation
+            # FixMe: Implement observation space
             # logger.debug(
             #     f'\nObservation: \n{[i if o == 1 else (i, o) for i, o in enumerate(self.observation) if o != 0]}')
         logger.debug(self.board)
@@ -253,14 +260,15 @@ class TableturfEnv(gym.Env):
         logger.debug(f'Scores {Player.players[0].c}{scores[0]}{C.END}, {Player.players[1].c}{scores[1]}{C.END}\n')
 
     def rules_move(self):
-        raise Exception('Rules based agent is not yet implemented for Tableturf battle!')
+        raise NotImplementedError('Rules based agent is not yet implemented for Tableturf battle!')
 
     def seed(self, seed=0):
         pass
 
 
 def play_first_card(env, player):
-    move = Move(player.hand[0], Point(0, 0), False)
+    point = Point(3, 21) if not player.id else Point(3, 4)
+    move = Move(player.hand[0], point, False, env.current_player_num)
     action = env.move_to_action(move)
     env.step(action)
 

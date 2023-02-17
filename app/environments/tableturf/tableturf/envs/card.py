@@ -22,7 +22,7 @@ class Card:
     name: str
     priority: int
     cost: int
-    shape: np.ndarray
+    splat_zone: np.ndarray
     special: Optional[Point] = None
 
     def __repr__(self):
@@ -30,8 +30,8 @@ class Card:
 
     def __str__(self):
         msg = f"Card {self.id}: {self.name}\n"
-        shape: List = self.shape.tolist()  # type: ignore
-        for i, row in enumerate(shape):
+        splat_zone: List = self.splat_zone.tolist()  # type: ignore
+        for i, row in enumerate(splat_zone):
             row = ['▣' if x else ' ' for x in row]
             if self.special and self.special.x == i:
                 row[self.special.y] = "\033[94m▣\033[0m"
