@@ -9,7 +9,7 @@ from typing_extensions import Literal
 from card import Card
 from deck import Deck
 
-card_path = Path("environments/tableturf/tableturf/envs/cards")
+card_path = Path("cards")
 
 
 @dataclass

@@ -1,6 +1,11 @@
 from typing import List, Tuple, Union
 
-import gym
+import warnings
+
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    import gym
+
 import numpy as np
 from typing_extensions import Literal
 
@@ -9,17 +14,16 @@ from deck import Deck
 
 # import config
 
-if __name__ == "__main__":
-    # Importing stable_baselines takes forever, use builtin for quicker testing.
-    import logging
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.DEBUG, format='%(message)s')
-else:
-    from stable_baselines import logger
+import logging
+# Importing stable_baselines takes forever, use builtin for quicker testing.
+# from stable_baselines import logger
 
 from board import Board, IllegalMoveError
 from helpers import create_universal_deck, Move, Point, Pass
 from player import Player
+
+logger = logging.getLogger()
+logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 
 
 universal_deck = create_universal_deck()
@@ -169,7 +173,7 @@ class TableturfEnv(gym.Env):
     def play_card(self, p1_move: Union[Move, Pass], p2_move: Union[Move, Pass]):
         moves: List[Move] = []
         for p, move in zip(Player.players, [p1_move, p2_move]):
-            logger.debug(f"{p} chooses {repr(move.card)}")
+            logger.debug(f"{p} chose {repr(move.card)}")
             p.play(move.card)
             if isinstance(move, Pass):
                 logger.debug(f"Player {p.id} passes")
@@ -264,36 +268,3 @@ class TableturfEnv(gym.Env):
 
     def seed(self, seed=0):
         pass
-
-
-def play_first_card(env, player):
-    point = Point(3, 21) if not player.id else Point(3, 4)
-    move = Move(player.hand[0], point, False, env.current_player_num)
-    action = env.move_to_action(move)
-    env.step(action)
-
-
-def test():
-    env = TableturfEnv(verbose=True, manual=True)
-    env.reset()
-
-    env.render()
-
-    while not env.done:
-        play_first_card(env, env.current_player)
-    # env.step(1)
-    # env.step(1)
-    # test_action_to_move()
-
-
-def test_action_to_move():
-    env = TableturfEnv(verbose=True, manual=True)
-    env.reset()
-    for i in range(env.action_space.n):
-        move = env.action_to_move(i)
-        action = env.move_to_action(move)
-        assert i == action
-
-
-if __name__ == "__main__":
-    test()

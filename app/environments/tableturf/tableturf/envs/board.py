@@ -36,24 +36,31 @@ class Board:
         return p0, p1
 
     def _play(self, move: Move):
-        # Todo play card
+        logger.debug(f"{repr(move.card)} plays with priority {move.card.priority}.")
         try:
             self.check_legal_action(move)
         except IllegalMoveError:
             logger.debug(f"{repr(move.card)} cannot be played at {move.point}. Special: {move.special}.")
             raise
 
-        # get mask
-        # apply mask
-        # add special tile
+        mask = self.get_mask(move)
+        np.putmask(self.board, mask.astype(bool), mask)
 
     def _play_conflict(self, moves: List[Move]):
-        # Fixme: Play conflict
         # Special Spaces can only be covered by other Special Spaces.
         # Special Spaces do not become walls unless colliding with another special space.
+        logger.debug("Cards have same priority!")
 
-        # Create both masks.
-        # Get intersection of masks, as another mask.
+        masks = [self.get_mask(x) for x in moves]
+
+        intersection = np.logical_and(*masks)
+        if not np.any(intersection):
+            for move in moves:
+                self._play(move)
+        else:
+            # Fixme: Resolve conflict
+            logger.debug("Not Implemented!")
+
         # Apply both masks.
         # Apply intersection mask as stone.
         # Add both specials, provided they aren't at the same coordinate.
@@ -65,7 +72,7 @@ class Board:
         else:
             moves.sort(key=lambda x: x.card.priority)
             for move in moves:
-                logger.debug(f"{repr(move.card)} goes first with priority of {move.card.priority}.")
+                logger.debug(f"{repr(move.card)} plays with priority {move.card.priority}.")
                 self._play(move)
 
     def assert_fits_on_board(self, x_min: int, x_max: int, y_min: int, y_max: int):
@@ -124,15 +131,7 @@ class Board:
         It must also be adjacent to a friendly coloured tile (Must be special tile if special).
         """
 
-        splat_zone = np.rot90(move.card.splat_zone, move.rotation)
-        x_min, y_min = move.point.x, move.point.y
-        x_max, y_max = x_min + splat_zone.shape[1], y_min + splat_zone.shape[0]
-
-        self.assert_fits_on_board(x_min, x_max, y_min, y_max)
-
-        mask = np.zeros(self.board.shape, dtype=bool)
-        mask[y_min:y_max, x_min:x_max] = splat_zone
-
+        mask = self.get_bool_mask(move)
         self.assert_space_on_board(mask, move.special, verbose)
         self.assert_adjacency(mask, move.player_id, move.special, verbose)
 
@@ -165,6 +164,26 @@ class Board:
 
         msg += "└" + "─" * self.width + "┘"
         return msg
+
+    def get_bool_mask(self, move: Move) -> np.ndarray:
+        """Get a boolean 2DArray representation of the move upon board."""
+        return self.get_mask(move).astype(bool)
+
+    def get_mask(self, move: Move) -> np.ndarray:
+        """Get a 2DArray representation of the move upon board."""
+        splat_zone = move.card.splat_zone.astype(int)
+        x_min, y_min = move.point.x, move.point.y
+        if move.card.special:
+            splat_zone[move.card.special.x, move.card.special.y] = 2
+        if move.player_id:
+            splat_zone *= -1
+        splat_zone = np.rot90(splat_zone, move.rotation)
+        x_max, y_max = x_min + splat_zone.shape[1], y_min + splat_zone.shape[0]
+
+        self.assert_fits_on_board(x_min, x_max, y_min, y_max)
+        mask = np.zeros(self.board.shape, dtype=int)
+        mask[y_min:y_max, x_min:x_max] = splat_zone
+        return mask
 
 
 main_street = np.zeros((26, 9), dtype=int)
